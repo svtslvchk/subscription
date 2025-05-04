@@ -46,3 +46,28 @@ class UserSubscription(Base):
     # Связи с таблицами (опционально, для удобства)
     user = relationship("User", back_populates="subscriptions")
     subscription = relationship("Subscription", back_populates="users")
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    subscription_id = Column(Integer, ForeignKey("subscriptions.id"))
+    amount = Column(Numeric(10, 2))
+    status = Column(String(20))  # pending/completed/failed
+    payment_method = Column(String(20))  # balance/card/yoomoney
+    external_id = Column(String(100))  # ID транзакции
+    created_at = Column(DateTime, default=datetime.utcnow)
+    is_refunded = Column(Boolean, default=False)
+    refund_reason = Column(Text, nullable=True)
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    message = Column(Text)
+    type = Column(String(20))  # payment/refund/subscription
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
