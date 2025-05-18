@@ -212,3 +212,6 @@ def update_wallet_balance(db: Session, user_id: int, amount: float):
         db.commit()
         db.refresh(db_wallet)
     return db_wallet
+
+
+
