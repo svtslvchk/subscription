@@ -3,8 +3,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_db
-import jwt  # или другой JWT-библиотеки
+from jose import jwt
 from datetime import timedelta, datetime
+from app.auth import get_current_user
 
 from passlib.context import CryptContext
 
@@ -27,6 +28,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
+
 @router.post("/token", response_model=schemas.Token)
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     try:
@@ -46,3 +48,11 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
         import traceback
         traceback.print_exc()  # Распечатает в консоль
         raise HTTPException(status_code=500, detail=str(e))  # Вернёт точную ошибку в ответ
+
+@router.get("/me", tags=["auth"])
+def get_me(user: models.User = Depends(get_current_user)):
+    return {
+        "id": user.id,
+        "username": user.username,
+        "balance": float(user.balance)
+    }

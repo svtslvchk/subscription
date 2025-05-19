@@ -98,9 +98,11 @@ class PaymentOut(PaymentCreate):
     class Config:
         from_attributes = True
 
+
 class BalanceUpdate(BaseModel):
     amount: float
     description: Optional[str] = None
+
 
 
 class NotificationBase(BaseModel):
