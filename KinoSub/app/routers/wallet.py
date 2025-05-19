@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from decimal import Decimal, InvalidOperation
 
 from app.database import get_db
 from app.models import User
@@ -19,7 +20,7 @@ async def get_user_balance(
     """
     Получить текущий баланс пользователя
     """
-    return current_user.balance
+    return float(current_user.balance or 0)
 
 
 @router.post("/topup", status_code=status.HTTP_200_OK)
@@ -31,19 +32,28 @@ async def top_up_balance(
     """
     Пополнить баланс пользователя
     """
-    if balance_data.amount <= 0:
+    try:
+        amount = Decimal(str(balance_data.amount))
+    except (InvalidOperation, TypeError):
+        raise HTTPException(status_code=400, detail="Некорректная сумма")
+
+    if amount <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Сумма пополнения должна быть больше 0"
         )
 
-    current_user.balance += balance_data.amount
+    if current_user.balance is None:
+        current_user.balance = Decimal("0")
+
+    current_user.balance += amount
     db.commit()
+    db.refresh(current_user)
 
-    # Здесь можно добавить запись в историю операций
-    # и отправку уведомления
-
-    return {"message": "Баланс успешно пополнен", "new_balance": current_user.balance}
+    return {
+        "message": "Баланс успешно пополнен",
+        "new_balance": float(current_user.balance)
+    }
 
 
 @router.post("/withdraw", status_code=status.HTTP_200_OK)
@@ -53,27 +63,36 @@ async def withdraw_from_balance(
         current_user: User = Depends(get_current_user)
 ):
     """
-    Списать средства с баланса (для оплаты подписки)
+    Списать средства с баланса
     """
-    if balance_data.amount <= 0:
+    try:
+        amount = Decimal(str(balance_data.amount))
+    except (InvalidOperation, TypeError):
+        raise HTTPException(status_code=400, detail="Некорректная сумма")
+
+    if amount <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Сумма списания должна быть больше 0"
         )
 
-    if current_user.balance < balance_data.amount:
+    if current_user.balance is None:
+        current_user.balance = Decimal("0")
+
+    if current_user.balance < amount:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Недостаточно средств на балансе"
         )
 
-    current_user.balance -= balance_data.amount
+    current_user.balance -= amount
     db.commit()
+    db.refresh(current_user)
 
-    # Здесь можно добавить запись в историю операций
-    # и отправку уведомления
-
-    return {"message": "Средства успешно списаны", "new_balance": current_user.balance}
+    return {
+        "message": "Средства успешно списаны",
+        "new_balance": float(current_user.balance)
+    }
 
 
 @router.get("/history")
@@ -83,7 +102,5 @@ async def get_balance_history(
 ):
     """
     Получить историю операций с балансом
-    (Требуется реализация таблицы balance_transactions)
     """
-    # Заглушка для будущей реализации
-    return {"message": "История операций будет доступна после реализации"}
+    return {"message": "История операций будет реализована позже"}

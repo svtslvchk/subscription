@@ -2,6 +2,8 @@ from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime, date
 from typing import Optional
 import uuid
+from enum import Enum
+from decimal import Decimal
 
 # !!! классы для USER !!!
 class UserBase(BaseModel):
@@ -129,6 +131,23 @@ class NotificationOut(NotificationBase):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+
+class TransactionType(str, Enum):
+    topup = "topup"
+    withdraw = "withdraw"
+
+class BalanceTransactionOut(BaseModel):
+    id: int
+    amount: float
+    type: TransactionType
+    description: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 
 
 

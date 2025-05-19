@@ -2,6 +2,9 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, Numeric, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
 from datetime import datetime, date
+from sqlalchemy import Enum as PgEnum
+import enum
+
 
 class User(Base):
     __tablename__ = "users"
@@ -71,3 +74,20 @@ class Notification(Base):
     type = Column(String(20))  # payment/refund/subscription
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class TransactionType(enum.Enum):
+    topup = "topup"
+    withdraw = "withdraw"
+
+class BalanceTransaction(Base):
+    __tablename__ = "balance_transactions"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    amount = Column(Numeric(10, 2), nullable=False)
+    type = Column(PgEnum(TransactionType), nullable=False)  # topup или withdraw
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", backref="transactions")
