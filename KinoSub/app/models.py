@@ -58,12 +58,13 @@ class Payment(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     subscription_id = Column(Integer, ForeignKey("subscriptions.id"))
     amount = Column(Numeric(10, 2))
-    status = Column(String(20))  # pending/completed/failed
-    payment_method = Column(String(20))  # balance/card/yoomoney
-    external_id = Column(String(100))  # ID транзакции
+    status = Column(String(20))
+    payment_method = Column(String(20))
+    external_id = Column(String(100))
     created_at = Column(DateTime, default=datetime.utcnow)
     is_refunded = Column(Boolean, default=False)
     refund_reason = Column(Text, nullable=True)
+
 
 class Notification(Base):
     __tablename__ = "notifications"
@@ -86,8 +87,10 @@ class BalanceTransaction(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     amount = Column(Numeric(10, 2), nullable=False)
-    type = Column(PgEnum(TransactionType), nullable=False)  # topup или withdraw
+    type = Column(PgEnum(TransactionType), nullable=False)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    user = relationship("User", backref="transactions")
+    user = relationship("User")
+
+

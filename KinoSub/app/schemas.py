@@ -78,32 +78,38 @@ class UserSubscriptionOut(UserSubscriptionBase):
 
 
 # !!! классы для PAYMENT !!!
-class PaymentBase(BaseModel):
-    user_id: int
-    subscription_id: int
-    amount: float
-    payment_method: str
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+from decimal import Decimal
+
 
 class PaymentCreate(BaseModel):
     subscription_id: int
-    amount: float
-    payment_method: str = "balance"
+    amount: Decimal
+    payment_method: str  # "balance", "card", "yoomoney" и т.д.
 
 
-class PaymentOut(PaymentCreate):
+class PaymentOut(BaseModel):
     id: int
+    user_id: int
+    subscription_id: int
+    amount: Decimal
     status: str
-    external_id: str
+    payment_method: str
+    external_id: Optional[str]
     created_at: datetime
-    is_refunded: bool
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
+
+from decimal import Decimal
 
 class BalanceUpdate(BaseModel):
-    amount: float
+    amount: Decimal
     description: Optional[str] = None
+
 
 
 
