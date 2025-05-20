@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
-from app.routers import users, subscriptions, user_subscriptions, payments, wallet, notifications, auth
+from app.routers import users, subscriptions, user_subscriptions, payments, wallet, notifications, auth, debug_admin
 
 app = FastAPI()
 
@@ -12,6 +12,7 @@ app.include_router(payments.router)
 app.include_router(wallet.router)
 app.include_router(notifications.router)
 app.include_router(auth.router)
+app.include_router(debug_admin.router)
 
 @app.get("/")
 def root():
