@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from app.routers import users, subscriptions, user_subscriptions, payments, wallet, notifications, auth, debug_admin, subscription_requests
+from app.services.background import auto_renew_subscriptions
 
 app = FastAPI()
 
@@ -18,6 +19,11 @@ app.include_router(subscription_requests.router)
 @app.get("/")
 def root():
     return {"message": "Добро пожаловать в кинотеатр!"}
+
+
+@app.on_event("startup")
+def run_background_task():
+    auto_renew_subscriptions()
 
 
 def custom_openapi():

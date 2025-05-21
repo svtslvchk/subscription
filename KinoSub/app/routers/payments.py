@@ -15,7 +15,7 @@ from app.models import (
     BalanceTransaction,
 )
 from app.auth import get_current_user
-from app.schemas import PaymentCreate, PaymentOut, RefundRequest
+from app.schemas import PaymentCreate, PaymentOut, RefundRequest, AutoRenewUpdate
 
 router = APIRouter(
     prefix="/payments",
@@ -169,3 +169,23 @@ async def refund_payment(
     db.commit()
     db.refresh(payment)
     return payment
+
+
+@router.patch("/subscriptions/{subscription_id}/auto-renew")
+def toggle_auto_renew(
+    subscription_id: int,
+    data: AutoRenewUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    usub = db.query(UserSubscription).filter_by(
+        user_id=user.id,
+        subscription_id=subscription_id
+    ).first()
+
+    if not usub:
+        raise HTTPException(status_code=404, detail="Подписка не найдена")
+
+    usub.auto_renew = data.enable
+    db.commit()
+    return {"subscription_id": subscription_id, "auto_renew": usub.auto_renew}

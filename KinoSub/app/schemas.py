@@ -178,6 +178,10 @@ class SubscriptionRequestOut(BaseModel):
         orm_mode = True
 
 
+class AutoRenewUpdate(BaseModel):
+    enable: bool
+
+
 
 
 
