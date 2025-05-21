@@ -22,14 +22,14 @@ router = APIRouter(
     tags=["payments"]
 )
 
-# Вспомогательная функция: эмуляция обработки платежа
+
 def process_payment(amount: Decimal, method: str) -> dict:
     return {
         "status": "completed",
         "transaction_id": f"pay_{uuid.uuid4()}"
     }
 
-# Обновлённая функция: создание уведомления (без type)
+
 def create_notification(db: Session, user_id: int, message: str):
     notification = Notification(
         user_id=user_id,
@@ -40,11 +40,12 @@ def create_notification(db: Session, user_id: int, message: str):
     db.add(notification)
     return notification
 
+
 @router.post("/", response_model=PaymentOut)
 async def create_payment(
-        payment_data: PaymentCreate,
-        db: Session = Depends(get_db),
-        user: User = Depends(get_current_user)
+    payment_data: PaymentCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
 ):
     try:
         amount = Decimal(str(payment_data.amount))
@@ -55,7 +56,7 @@ async def create_payment(
         ).first()
 
         if not subscription:
-            raise HTTPException(status_code=404, detail="Subscription not found")
+            raise HTTPException(status_code=404, detail="Subscription not assigned")
 
         if payment_data.payment_method == "balance" and user.balance < amount:
             raise HTTPException(status_code=400, detail="Insufficient funds")
@@ -94,30 +95,32 @@ async def create_payment(
         create_notification(
             db,
             user.id,
-            f"Оплата {amount} RUB за подписку #{payment_data.subscription_id}"
+            f"Оплата {amount}₽ за подписку #{payment_data.subscription_id}"
         )
 
         db.commit()
         db.refresh(payment)
         return payment
 
-    except Exception as e:
+    except Exception:
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Ошибка при создании платежа")
 
+
 @router.get("/", response_model=List[PaymentOut])
 async def get_payments(
-        skip: int = 0,
-        limit: int = 100,
-        db: Session = Depends(get_db),
-        user: User = Depends(get_current_user)
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
 ):
-    return db.query(Payment) \
-        .filter(Payment.user_id == user.id) \
-        .offset(skip) \
-        .limit(limit) \
+    return db.query(Payment)\
+        .filter(Payment.user_id == user.id)\
+        .offset(skip)\
+        .limit(limit)\
         .all()
+
 
 @router.post("/{payment_id}/refund", response_model=PaymentOut)
 async def refund_payment(
@@ -148,10 +151,19 @@ async def refund_payment(
     payment.refund_reason = refund.reason
     payment.status = "refunded"
 
+    subscription = db.query(UserSubscription).filter_by(
+        user_id=user.id,
+        subscription_id=payment.subscription_id
+    ).first()
+
+    if subscription:
+        subscription.is_active = False
+        subscription.end_date = datetime.utcnow().date()
+
     create_notification(
         db,
         user.id,
-        f"Произведён возврат {payment.amount} RUB по платежу #{payment.id}"
+        f"Произведён возврат {payment.amount}₽ по платежу #{payment.id}"
     )
 
     db.commit()
