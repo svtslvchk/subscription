@@ -18,6 +18,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     subscriptions = relationship("UserSubscription", back_populates="user")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
 
 
 class Subscription(Base):
@@ -66,15 +67,18 @@ class Payment(Base):
     refund_reason = Column(Text, nullable=True)
 
 
+
 class Notification(Base):
     __tablename__ = "notifications"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    message = Column(Text)
-    type = Column(String(20))  # payment/refund/subscription
+    message = Column(String, nullable=False)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="notifications")
+
 
 
 class TransactionType(enum.Enum):
@@ -92,5 +96,18 @@ class BalanceTransaction(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User")
+
+
+class SubscriptionRequest(Base):
+    __tablename__ = "subscription_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    subscription_id = Column(Integer, ForeignKey("subscriptions.id"))
+    status = Column(String, default="pending")  # pending / approved / rejected
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+    subscription = relationship("Subscription")
 
 

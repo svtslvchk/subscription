@@ -73,3 +73,4 @@ def get_subscription(subscription_id: int, db: Session = Depends(get_db)):
     if not subscription:
         raise HTTPException(status_code=404, detail="Подписка не найдена")
     return subscription
+

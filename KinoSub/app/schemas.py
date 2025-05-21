@@ -99,9 +99,16 @@ class PaymentOut(BaseModel):
     payment_method: str
     external_id: Optional[str]
     created_at: datetime
+    is_refunded: Optional[bool]
+    refund_reason: Optional[str]
 
     class Config:
         orm_mode = True
+
+
+class RefundRequest(BaseModel):
+    reason: Optional[str] = "No reason provided"
+
 
 
 from decimal import Decimal
@@ -124,14 +131,15 @@ class NotificationCreate(NotificationBase):
 class NotificationUpdate(BaseModel):
     is_read: bool
 
-class NotificationOut(NotificationBase):
+
+class NotificationOut(BaseModel):
     id: int
+    message: str
     is_read: bool
     created_at: datetime
 
     class Config:
-        from_attributes = True  # Ранее называлось orm_mode
-
+        orm_mode = True
 
 
 class Token(BaseModel):
@@ -153,6 +161,25 @@ class BalanceTransactionOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+
+class SubscriptionRequestCreate(BaseModel):
+    subscription_id: int
+
+class SubscriptionRequestOut(BaseModel):
+    id: int
+    user_id: int
+    subscription_id: int
+    status: str
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+
+
 
 
 

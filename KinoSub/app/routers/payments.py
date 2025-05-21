@@ -15,13 +15,12 @@ from app.models import (
     BalanceTransaction,
 )
 from app.auth import get_current_user
-from app.schemas import PaymentCreate, PaymentOut
+from app.schemas import PaymentCreate, PaymentOut, RefundRequest
 
 router = APIRouter(
     prefix="/payments",
     tags=["payments"]
 )
-
 
 # Вспомогательная функция: эмуляция обработки платежа
 def process_payment(amount: Decimal, method: str) -> dict:
@@ -30,19 +29,16 @@ def process_payment(amount: Decimal, method: str) -> dict:
         "transaction_id": f"pay_{uuid.uuid4()}"
     }
 
-
-# Вспомогательная функция: создание уведомления
-def create_notification(db: Session, user_id: int, message: str, type: str):
+# Обновлённая функция: создание уведомления (без type)
+def create_notification(db: Session, user_id: int, message: str):
     notification = Notification(
         user_id=user_id,
         message=message,
-        type=type,
         is_read=False,
         created_at=datetime.utcnow()
     )
     db.add(notification)
     return notification
-
 
 @router.post("/", response_model=PaymentOut)
 async def create_payment(
@@ -51,9 +47,8 @@ async def create_payment(
         user: User = Depends(get_current_user)
 ):
     try:
-        amount = Decimal(str(payment_data.amount))  # безопасное приведение к Decimal
+        amount = Decimal(str(payment_data.amount))
 
-        # Проверка подписки
         subscription = db.query(UserSubscription).filter(
             UserSubscription.user_id == user.id,
             UserSubscription.subscription_id == payment_data.subscription_id
@@ -62,18 +57,14 @@ async def create_payment(
         if not subscription:
             raise HTTPException(status_code=404, detail="Subscription not found")
 
-        # Проверка баланса
         if payment_data.payment_method == "balance" and user.balance < amount:
             raise HTTPException(status_code=400, detail="Insufficient funds")
 
-        # Обработка платежа
         payment_result = process_payment(amount, payment_data.payment_method)
 
-        # Списание средств и запись транзакции
         if payment_result["status"] == "completed":
             if payment_data.payment_method == "balance":
                 user.balance -= amount
-
                 transaction = BalanceTransaction(
                     user_id=user.id,
                     amount=amount,
@@ -82,7 +73,6 @@ async def create_payment(
                 )
                 db.add(transaction)
 
-            # Обновление подписки
             if not subscription.end_date or subscription.end_date < datetime.utcnow().date():
                 sub_info = db.query(Subscription).get(payment_data.subscription_id)
                 subscription.start_date = datetime.utcnow().date()
@@ -90,7 +80,6 @@ async def create_payment(
 
             subscription.is_active = True
 
-        # Запись платежа
         payment = Payment(
             user_id=user.id,
             subscription_id=payment_data.subscription_id,
@@ -102,12 +91,10 @@ async def create_payment(
         )
         db.add(payment)
 
-        # Уведомление
         create_notification(
             db,
             user.id,
-            f"Payment {amount} RUB for subscription #{payment_data.subscription_id}",
-            "payment"
+            f"Оплата {amount} RUB за подписку #{payment_data.subscription_id}"
         )
 
         db.commit()
@@ -118,7 +105,6 @@ async def create_payment(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Ошибка при создании платежа")
-
 
 @router.get("/", response_model=List[PaymentOut])
 async def get_payments(
@@ -132,3 +118,42 @@ async def get_payments(
         .offset(skip) \
         .limit(limit) \
         .all()
+
+@router.post("/{payment_id}/refund", response_model=PaymentOut)
+async def refund_payment(
+    payment_id: int,
+    refund: RefundRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    payment = db.query(Payment).filter(Payment.id == payment_id, Payment.user_id == user.id).first()
+
+    if not payment:
+        raise HTTPException(status_code=404, detail="Платёж не найден")
+
+    if payment.status != "completed" or payment.is_refunded:
+        raise HTTPException(status_code=400, detail="Платёж уже возвращён или не был успешным")
+
+    user.balance += payment.amount
+
+    transaction = BalanceTransaction(
+        user_id=user.id,
+        amount=payment.amount,
+        type="topup",
+        description=f"Возврат по платежу #{payment.id}"
+    )
+    db.add(transaction)
+
+    payment.is_refunded = True
+    payment.refund_reason = refund.reason
+    payment.status = "refunded"
+
+    create_notification(
+        db,
+        user.id,
+        f"Произведён возврат {payment.amount} RUB по платежу #{payment.id}"
+    )
+
+    db.commit()
+    db.refresh(payment)
+    return payment
