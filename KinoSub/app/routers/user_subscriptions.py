@@ -15,52 +15,39 @@ router = APIRouter(
 
 # 👇 Только админ может вручную назначить подписку пользователю
 @router.post("/", response_model=UserSubscriptionOut, status_code=status.HTTP_201_CREATED)
-def assign_subscription(
-    subscription: UserSubscriptionCreate,
+def assign_subscription_to_self(
+    subscription_data: UserSubscriptionCreate,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin_user)  # 🔐 проверка роли
+    admin: User = Depends(get_current_admin_user)
 ):
-    db_user = db.query(User).get(subscription.user_id)
-    db_sub = db.query(Subscription).get(subscription.subscription_id)
+    db_sub = db.query(Subscription).get(subscription_data.subscription_id)
 
-    if not db_user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
     if not db_sub:
         raise HTTPException(status_code=404, detail="Подписка не найдена")
 
-    active_subscription = db.query(UserSubscription).filter(
-        UserSubscription.user_id == subscription.user_id,
-        UserSubscription.is_active == True,
-        UserSubscription.end_date >= date.today()
+    existing = db.query(UserSubscription).filter_by(
+        user_id=admin.id,
+        subscription_id=subscription_data.subscription_id
     ).first()
 
-    if active_subscription:
-        raise HTTPException(status_code=400, detail="У пользователя уже есть активная подписка")
+    if existing:
+        raise HTTPException(status_code=400, detail="У вас уже есть эта подписка")
 
-    if subscription.end_date:
-        if subscription.end_date < date.today():
-            raise HTTPException(status_code=400, detail="Дата окончания в прошлом")
-        end_date = subscription.end_date
-    else:
-        end_date = date.today() + timedelta(days=db_sub.duration_days)
+    end_date = date.today() + timedelta(days=db_sub.duration_days)
 
-    db_user_sub = UserSubscription(
-        user_id=subscription.user_id,
-        subscription_id=subscription.subscription_id,
+    new_sub = UserSubscription(
+        user_id=admin.id,
+        subscription_id=subscription_data.subscription_id,
         start_date=date.today(),
         end_date=end_date,
         is_active=True,
-        auto_renew=subscription.auto_renew
+        auto_renew=subscription_data.auto_renew
     )
 
-    try:
-        db.add(db_user_sub)
-        db.commit()
-        db.refresh(db_user_sub)
-        return db_user_sub
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Ошибка при создании подписки: {str(e)}")
+    db.add(new_sub)
+    db.commit()
+    db.refresh(new_sub)
+    return new_sub
 
 # 👇 Доступ к своим подпискам — для обычных пользователей
 @router.get("/me", response_model=List[UserSubscriptionOut])
@@ -72,11 +59,14 @@ def get_my_subscriptions(
         UserSubscription.user_id == user.id
     ).all()
 
+    today = date.today()
     for sub in subscriptions:
-        if sub.end_date < date.today():
+        if sub.end_date and sub.end_date < today:
             sub.is_active = False
+
     db.commit()
     return subscriptions
+
 
 # 👇 Продление подписки — либо админ, либо владелец
 @router.patch("/{subscription_id}/renew", response_model=UserSubscriptionOut)

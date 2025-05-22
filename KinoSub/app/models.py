@@ -36,6 +36,7 @@ class Subscription(Base):
     users = relationship("UserSubscription", back_populates="subscription")
 
 
+
 class UserSubscription(Base):
     __tablename__ = "user_subscriptions"
 
@@ -50,6 +51,7 @@ class UserSubscription(Base):
     # Связи с таблицами (опционально, для удобства)
     user = relationship("User", back_populates="subscriptions")
     subscription = relationship("Subscription", back_populates="users")
+
 
 
 class Payment(Base):

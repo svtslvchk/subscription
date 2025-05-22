@@ -60,9 +60,8 @@ from pydantic import BaseModel
 from datetime import date
 
 class UserSubscriptionBase(BaseModel):
-    user_id: int
     subscription_id: int
-    end_date: date
+    end_date: Optional[date] = None
     auto_renew: bool = False
 
 class UserSubscriptionCreate(UserSubscriptionBase):
@@ -71,7 +70,9 @@ class UserSubscriptionCreate(UserSubscriptionBase):
 class UserSubscriptionOut(UserSubscriptionBase):
     id: int
     start_date: date
+    end_date: Optional[date]
     is_active: bool
+    subscription: Optional[SubscriptionOut]
 
     class Config:
         from_attributes = True  # Для работы с ORM

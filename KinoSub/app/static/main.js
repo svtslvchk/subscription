@@ -202,25 +202,35 @@ function showUIAfterLogin(user) {
     if (user.role === "admin") {
         document.getElementById("admin-panel").style.display = "block";
         document.getElementById("subscription-requests").style.display = "block";
+        document.getElementById("wallet-section").style.display = "none";
+        document.getElementById("payment-history-section").style.display = "none";
+        document.getElementById("pay-subscription-form").style.display = "none";  // ❌ скрыть для админа
         loadSubscriptionRequests();
+    } else {
+        document.getElementById("wallet-section").style.display = "block";
+        document.getElementById("payment-history-section").style.display = "block";
+        document.getElementById("pay-subscription-form").style.display = "block"; // ✅ показать для пользователя
+        loadWallet();
+        loadPaymentHistory();
     }
 
     document.getElementById("subscriptions-section").style.display = "block";
-    document.getElementById("wallet-section").style.display = "block";
-
     loadSubscriptions(user);
-    loadWallet();
-    loadPaymentHistory();
+    loadUserSubscriptions();
 }
+
 
 
 async function loadSubscriptions(user) {
     const res = await fetch("/subscriptions/?active_only=true");
     const subs = await res.json();
-    const userSubs = await getUserSubscriptions(); // 👈 получаем подписки пользователя
-
     const list = document.getElementById("subscription-list");
     list.innerHTML = "";
+
+    const userSubRes = await fetch("/user-subscriptions/me", {
+        headers: { Authorization: "Bearer " + localStorage.getItem("token") }
+    });
+    const userSubs = await userSubRes.json();
 
     for (const sub of subs) {
         const li = document.createElement("li");
@@ -236,10 +246,20 @@ async function loadSubscriptions(user) {
             deleteBtn.textContent = "🗑";
             deleteBtn.onclick = () => deleteSubscription(sub.id);
             li.appendChild(deleteBtn);
-        } else {
-            const hasAccess = userSubs.some(us => us.subscription_id === sub.id);
 
-            if (hasAccess) {
+            const assignBtn = document.createElement("button");
+            assignBtn.textContent = "Выдать себе";
+            assignBtn.onclick = () => assignSubscriptionToSelf(sub.id);
+            li.appendChild(assignBtn);
+        } else {
+            const userHasSub = userSubs.find(s => s.subscription_id === sub.id);
+
+            if (!userHasSub) {
+                const reqBtn = document.createElement("button");
+                reqBtn.textContent = "Запросить доступ";
+                reqBtn.onclick = () => requestAccess(sub.id);
+                li.appendChild(reqBtn);
+            } else if (!userHasSub.is_active) {
                 const payBtn = document.createElement("button");
                 payBtn.textContent = "Оплатить";
                 payBtn.onclick = () => {
@@ -248,17 +268,14 @@ async function loadSubscriptions(user) {
                     document.getElementById("pay-subscription-form").scrollIntoView({ behavior: "smooth" });
                 };
                 li.appendChild(payBtn);
-            } else {
-                const reqBtn = document.createElement("button");
-                reqBtn.textContent = "Запросить доступ";
-                reqBtn.onclick = () => requestAccess(sub.id);
-                li.appendChild(reqBtn);
             }
         }
 
         list.appendChild(li);
     }
 }
+
+
 
 
 
@@ -337,6 +354,7 @@ async function loadWallet() {
         list.appendChild(li);
     });
 }
+
 async function loadPaymentHistory() {
     const token = localStorage.getItem("token");
     const res = await fetch("/payments/", {
@@ -352,6 +370,7 @@ async function loadPaymentHistory() {
         list.appendChild(li);
     });
 }
+
 async function requestAccess(subId) {
     const res = await fetch("/subscription-requests/", {
         method: "POST",
@@ -369,6 +388,7 @@ async function requestAccess(subId) {
         alert("Ошибка: " + data.detail);
     }
 }
+
 async function loadSubscriptionRequests() {
     const res = await fetch("/subscription-requests/admin", {
         headers: {
@@ -451,4 +471,52 @@ async function getUserSubscriptions() {
         headers: { Authorization: "Bearer " + token }
     });
     return await res.json();
+}
+
+async function loadUserSubscriptions() {
+    const token = localStorage.getItem("token");
+    const res = await fetch("/user-subscriptions/me", {
+        headers: { Authorization: "Bearer " + token }
+    });
+
+    if (!res.ok) return;
+
+    const data = await res.json();
+    const list = document.getElementById("active-subscriptions-list");
+    list.innerHTML = "";
+
+    data.forEach(s => {
+        if (s.is_active) {
+            const li = document.createElement("li");
+            li.textContent = `Подписка: ${s.subscription?.name || "Без названия"}, до ${s.end_date || "∞"}`;
+
+            list.appendChild(li);
+        }
+    });
+
+    document.getElementById("my-active-subscriptions").style.display = "block";
+}
+
+async function assignSubscriptionToSelf(subscriptionId) {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch("/user-subscriptions/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token
+        },
+        body: JSON.stringify({
+            subscription_id: subscriptionId,
+            auto_renew: false
+        })
+    });
+
+    if (res.ok) {
+        alert("Подписка выдана себе!");
+        loadUserSubscriptions();
+    } else {
+        const err = await res.json();
+        alert("Ошибка: " + err.detail);
+    }
 }
