@@ -6,6 +6,8 @@ from app.database import get_db
 from jose import jwt
 from datetime import timedelta, datetime
 from app.auth import get_current_user
+from app.schemas import UserOut
+from app.models import User
 
 from passlib.context import CryptContext
 
@@ -50,9 +52,6 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
         raise HTTPException(status_code=500, detail=str(e))  # Вернёт точную ошибку в ответ
 
 @router.get("/me", tags=["auth"])
-def get_me(user: models.User = Depends(get_current_user)):
-    return {
-        "id": user.id,
-        "username": user.username,
-        "balance": float(user.balance)
-    }
+@router.get("/me", response_model=UserOut)
+def get_me(user: User = Depends(get_current_user)):
+    return user

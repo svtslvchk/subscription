@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Кинотеатр</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/main.js" defer></script>
+</head>
+<body>
+    <h1>Онлайн-Кинотеатр</h1>
+
+    <!-- Регистрация -->
+    <form id="register-form">
+        <h2>Регистрация</h2>
+        <input type="text" id="reg-username" placeholder="Имя пользователя" required>
+        <input type="email" id="reg-email" placeholder="Email" required>
+        <input type="password" id="reg-password" placeholder="Пароль" required>
+        <button type="submit">Зарегистрироваться</button>
+    </form>
+
+    <!-- Вход -->
+    <form id="login-form">
+        <h2>Вход</h2>
+        <input type="text" id="login-username" placeholder="Имя пользователя" required>
+        <input type="password" id="login-password" placeholder="Пароль" required>
+        <button type="submit">Войти</button>
+    </form>
+
+    <button id="logout-btn" style="display:none;">Выйти</button>
+
+    <!-- Админ-панель -->
+    <div id="admin-panel" style="display:none;">
+        <h2>Админ-панель</h2>
+        <form id="create-subscription-form">
+            <input type="text" id="sub-name" placeholder="Название подписки" required>
+            <input type="number" id="sub-price" placeholder="Цена" required>
+            <input type="number" id="sub-days" placeholder="Длительность (дней)" required>
+            <button type="submit">Создать подписку</button>
+        </form>
+    </div>
+    <div id="subscription-requests" style="display:none;">
+        <h2>Запросы на подписки</h2>
+        <ul id="request-list"></ul>
+    </div>
+
+    <!-- Подписки -->
+    <div id="subscriptions-section" style="display:none;">
+        <h2>Подписки</h2>
+        <ul id="subscription-list"></ul>
+        <form id="pay-subscription-form">
+          <h4>Оплатить подписку</h4>
+          <input type="number" id="pay-subscription-id" placeholder="ID подписки" required>
+          <select id="payment-method">
+            <option value="balance">Кошелёк</option>
+            <option value="card">Карта</option>
+          </select>
+          <input type="number" id="pay-amount" placeholder="Сумма" step="0.01" required>
+          <button type="submit">Оплатить</button>
+        </form>
+
+    </div>
+
+    <div id="wallet-section" style="display: none;">
+      <h2>💰 Кошелёк</h2>
+      <p><strong>Ваш баланс:</strong> <span id="balance-amount">—</span> ₽</p>
+
+      <form id="topup-form">
+        <h4>Пополнить баланс</h4>
+        <input type="number" id="topup-amount" placeholder="Сумма" step="0.01" required>
+        <input type="text" id="topup-desc" placeholder="Описание (необязательно)">
+        <button type="submit">Пополнить</button>
+      </form>
+
+      <form id="withdraw-form">
+          <h4>Списать средства</h4>
+          <input type="number" id="withdraw-amount" placeholder="Сумма" step="0.01" required>
+          <input type="text" id="withdraw-desc" placeholder="Описание (необязательно)">
+          <button type="submit">Списать</button>
+      </form>
+      <form id="refund-form">
+          <h4>Запрос на возврат</h4>
+          <input type="number" id="refund-payment-id" placeholder="ID платежа" required>
+          <input type="text" id="refund-reason" placeholder="Причина возврата" required>
+          <button type="submit">Вернуть средства</button>
+      </form>
+
+    </div>
+    <section id="payment-history-section">
+      <h3>История платежей</h3>
+      <ul id="payment-history-list"></ul>
+    </section>
+
+</body>
+</html>

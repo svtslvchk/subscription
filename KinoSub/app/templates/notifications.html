@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Уведомления</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h1>Уведомления</h1>
+  <div id="notifications"></div>
+
+  <script>
+    const token = localStorage.getItem("token");
+
+    async function fetchNotifications() {
+      const response = await fetch("/notifications/", {
+        headers: { Authorization: Bearer ${token} }
+      });
+      if (!response.ok) {
+        alert("Ошибка при получении уведомлений");
+        return;
+      }
+
+      const data = await response.json();
+      const container = document.getElementById("notifications");
+      container.innerHTML = "";
+
+      if (data.length === 0) {
+        container.innerHTML = "<p>Нет уведомлений</p>";
+        return;
+      }
+
+      data.forEach(n => {
+        const block = document.createElement("div");
+        block.className = "notification";
+        block.innerHTML = `
+          <p><strong>${n.message}</strong></p>
+          <p>${new Date(n.created_at).toLocaleString()}</p>
+          <p>Статус: ${n.is_read ? "прочитано" : "не прочитано"}</p>
+          ${!n.is_read ? <button onclick="markAsRead(${n.id})">Пометить как прочитанное</button> : ""}
+        `;
+        container.appendChild(block);
+      });
+    }
+
+    async function markAsRead(id) {
+      const response = await fetch(/notifications/${id}/read, {
+        method: "PATCH",
+        headers: { Authorization: Bearer ${token} }
+      });
+      if (!response.ok) {
+        alert("Ошибка при обновлении статуса уведомления");
+        return;
+      }
+      fetchNotifications();
+    }
+
+    fetchNotifications();
+  </script>
+</body>
+</html>

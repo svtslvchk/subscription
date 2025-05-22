@@ -1,57 +1,32 @@
-from fastapi import FastAPI
-from fastapi.openapi.utils import get_openapi
-from app.routers import users, subscriptions, user_subscriptions, payments, wallet, notifications, auth, debug_admin, subscription_requests
-from app.services.background import auto_renew_subscriptions
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+from app.routers import auth, users, subscriptions, wallet, payments, user_subscriptions, subscription_requests, notifications, debug_admin
+import os
 
 app = FastAPI()
 
-# Подключение роутеров
+app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(subscriptions.router)
-app.include_router(user_subscriptions.router)
-app.include_router(payments.router)
 app.include_router(wallet.router)
-app.include_router(notifications.router)
-app.include_router(auth.router)
-app.include_router(debug_admin.router)
+app.include_router(payments.router)
+app.include_router(user_subscriptions.router)
 app.include_router(subscription_requests.router)
+app.include_router(notifications.router)
+app.include_router(debug_admin.router)
 
-@app.get("/")
-def root():
-    return {"message": "Добро пожаловать в кинотеатр!"}
+# Подключение статики и шаблонов
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-@app.on_event("startup")
-def run_background_task():
-    auto_renew_subscriptions()
-
-
-def custom_openapi():
-    if app.openapi_schema:
-        return app.openapi_schema
-
-    openapi_schema = get_openapi(
-        title="KinoSub API",
-        version="1.0.0",
-        description="API для кинотеатра",
-        routes=app.routes,
-    )
-
-    openapi_schema["components"]["securitySchemes"] = {
-        "OAuth2Password": {
-            "type": "oauth2",
-            "flows": {
-                "password": {
-                    "tokenUrl": "/auth/token",
-                    "scopes": {}
-                }
-            }
-        }
-    }
-
-    for path in openapi_schema["paths"].values():
-        for method in path.values():
-            method.setdefault("security", [{"OAuth2Password": []}])
-
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema
+@app.get("/notifications.html", response_class=HTMLResponse)
+async def notifications_page(request: Request):
+    return templates.TemplateResponse("notifications.html", {"request": request})
